@@ -7,6 +7,7 @@
 #include <netinet/in.h>
 #include <netdb.h>
 #include <sys/wait.h>
+#include <errno.h>
 
 #define BUFFER_SIZE 71680
 #define ALPHABET_SIZE 27
@@ -51,26 +52,70 @@ char convertInt(int c)
 }
 
 // Decrypt text using key and assigns to decipher
-void decrypt(char decipher[], char text[], char key[]){
-  int textLen = strlen(text)-1;
+void decrypt(char decipher[], char text[], char key[])
+{
+  int textLen = strlen(text);
   memset(decipher, '\0', 71680);
   int textint = 0;
   int keyint = 0;
   int decipherint = 0;
 
   int i;
-  for(i = 0; i < textLen; i++){
+  for (i = 0; i < textLen - 1; i++)
+  {
     textint = convertChar(text[i]);
     keyint = convertChar(key[i]);
-    //reverse encrypt process
+    // reverse encrypt process
     decipherint = (textint - keyint) % 27;
-    //if the resulting int is lower then zero, compensate
-    if(decipherint < 0){
-			decipherint += 27;
-		}
+    // if the resulting int is lower then zero, compensate
+    if (decipherint < 0)
+    {
+      decipherint += 27;
+    }
     decipher[i] = convertInt(decipherint);
   }
 }
+
+int sendall(int s, char *buf, int len)
+{
+    int total = 0;        // how many bytes we've sent
+    int bytesleft = len; // how many we have left to send
+    int n;
+    // printf("Server-send: len: %d , bytesleft: %d \n", len, bytesleft);
+    while(total < len) {
+        n = send(s, buf+total, bytesleft, 0);
+        if (n == -1) { break; }
+        total += n;
+        bytesleft -= n;
+    } 
+
+    len = total; // return number actually sent here
+    return n==-1?-1:0; // return -1 on failure, 0 on success
+} 
+
+
+int recvall(int s, char *buf, int len) {
+    int total = 0;         // how many bytes we've received so far
+    int bytesleft = len;   // how many bytes we have left to receive
+    int n;
+    // printf("Server-recv: len: %d , bytesleft: %d \n", len, bytesleft);
+    while (total < len) {
+        n = recv(s, buf + total, bytesleft, 0);
+        if (n == -1) { break; }
+        if (n == 0) { return total; } // connection closed by remote host
+        total += n;
+        bytesleft -= n;
+    }
+
+    if (n == -1) {
+        // an error occurred while receiving
+        return -1;
+    } else {
+        // successfully received all data
+        return total;
+    }
+}
+
 
 // Set up the address struct for the server socket
 void setupAddressStruct(struct sockaddr_in *address, int portNumber)
@@ -92,7 +137,7 @@ int main(int argc, char *argv[])
 {
   if (argc < 2)
   {
-    fprintf(stderr, "USAGE: %s port\n", argv[0]);
+    fprintf(stderr, "USAGE: %s port \n", argv[0]);
     exit(1);
   }
 
@@ -150,7 +195,7 @@ int main(int argc, char *argv[])
       // Child process: authenticate client
       memset(auth, '\0', sizeof(auth));
       // recieve auth char from client and assign to auth
-      authRead = recv(connectionSocket, auth, sizeof(auth), 0);
+      authRead = recvall(connectionSocket, auth, sizeof(auth));
       if (authRead < 0)
       {
         error("ERROR reading from socket");
@@ -160,10 +205,10 @@ int main(int argc, char *argv[])
       if (strcmp(auth, "d") != 0)
       {
         strcpy(auth, "n");
-        authSend = send(connectionSocket, auth, sizeof(auth), 0);
+        authSend = sendall(connectionSocket, auth, sizeof(auth));
         if (authSend < 0)
         {
-          error("ERROR writing to socket");
+          error("ERROR writing to socket-dec-server-auth:1");
         }
       }
       // If auth is d then the client is dec_client and therefore valid
@@ -171,39 +216,40 @@ int main(int argc, char *argv[])
       else
       {
         strcpy(auth, "y");
-        authSend = send(connectionSocket, auth, sizeof(auth), 0);
+        authSend = sendall(connectionSocket, auth, sizeof(auth));
         if (authSend < 0)
         {
-          error("ERROR writing to socket");
+          error("ERROR writing to socket-dec-server-auth:2");
         }
       }
 
       // Read the client's text from the socket
-      charsRead = recv(connectionSocket, text, BUFFER_SIZE, 0); 
-      if (charsRead < 0){
+      charsRead = recvall(connectionSocket, text, BUFFER_SIZE);
+      if (charsRead < 0)
+      {
         error("ERROR reading from socket");
       }
 
       // Read the client's key from the socket
-      charsRead = recv(connectionSocket, key, BUFFER_SIZE, 0); 
-      if (charsRead < 0){
-        error("ERROR reading from socket");
-      }
-      
+      charsRead = recvall(connectionSocket, key, BUFFER_SIZE);
       if (charsRead < 0)
       {
         error("ERROR reading from socket");
       }
 
+      if (charsRead < 0)
+      {
+        error("ERROR reading from socket");
+      }
 
       // Decrypt the text with the key
       decrypt(decipher, text, key);
 
-      // Send the encrypted text back to the client
-      charsRead = send(connectionSocket, decipher, strlen(decipher), 0);
+      // Send the decrypted text back to the client
+      charsRead = sendall(connectionSocket, decipher, BUFFER_SIZE);
       if (charsRead < 0)
       {
-        error("ERROR writing to socket");
+        error("ERROR writing to socket-dec-server-send:1");
       }
 
       // Close the connection socket for this client

@@ -60,7 +60,7 @@ void encrypt(char cipher[], const char text[], const char key[])
   int cipherInt = 0;
   int i;
 
-  for (i = 0; i < textLen; i++)
+  for (i = 0; i < textLen-1; i++)
   {
     textInt = convertChar(text[i]);
     keyInt = convertChar(key[i]);
@@ -68,6 +68,46 @@ void encrypt(char cipher[], const char text[], const char key[])
     cipherInt = (textInt + keyInt) % ALPHABET_SIZE;
     cipher[i] = convertInt(cipherInt);
   }
+}
+
+int sendall(int s, char *buf, int len)
+{
+    int total = 0;        // how many bytes we've sent
+    int bytesleft = len; // how many we have left to send
+    int n;
+    // printf("Server-send: len: %d , bytesleft: %d \n", len, bytesleft);
+    while(total < len) {
+        n = send(s, buf+total, bytesleft, 0);
+        if (n == -1) { break; }
+        total += n;
+        bytesleft -= n;
+    } 
+
+    len = total; // return number actually sent here
+    return n==-1?-1:0; // return -1 on failure, 0 on success
+} 
+
+
+int recvall(int s, char *buf, int len) {
+    int total = 0;         // how many bytes we've received so far
+    int bytesleft = len;   // how many bytes we have left to receive
+    int n;
+    // printf("Server-recv: len: %d , bytesleft: %d \n", len, bytesleft);
+    while (total < len) {
+        n = recv(s, buf + total, bytesleft, 0);
+        if (n == -1) { break; }
+        if (n == 0) { return total; } // connection closed by remote host
+        total += n;
+        bytesleft -= n;
+    }
+
+    if (n == -1) {
+        // an error occurred while receiving
+        return -1;
+    } else {
+        // successfully received all data
+        return total;
+    }
 }
 
 // Set up the address struct for the server socket
@@ -148,7 +188,7 @@ int main(int argc, char *argv[])
       // Child process: authenticate client
       memset(auth, '\0', sizeof(auth));
       // recieve auth char from client and assign to auth
-      authRead = recv(connectionSocket, auth, sizeof(auth), 0);
+      authRead = recvall(connectionSocket, auth, sizeof(auth));
       if (authRead < 0)
       {
         error("ERROR reading from socket");
@@ -158,10 +198,10 @@ int main(int argc, char *argv[])
       if (strcmp(auth, "e") != 0)
       {
         strcpy(auth, "n");
-        authSend = send(connectionSocket, auth, sizeof(auth), 0);
+        authSend = sendall(connectionSocket, auth, sizeof(auth));
         if (authSend < 0)
         {
-          error("ERROR writing to socket");
+          error("ERROR writing to socket-enc-server-auth:1");
         }
       }
       // if auth == e then the client is enc_client and therefore valid
@@ -169,39 +209,40 @@ int main(int argc, char *argv[])
       else
       {
         strcpy(auth, "y");
-        authSend = send(connectionSocket, auth, sizeof(auth), 0);
+        authSend = sendall(connectionSocket, auth, sizeof(auth));
         if (authSend < 0)
         {
-          error("ERROR writing to socket");
+          error("ERROR writing to socket-enc-server-auth:2");
         }
       }
 
       // Read the client's text from the socket
-      charsRead = recv(connectionSocket, text, BUFFER_SIZE, 0); 
-      if (charsRead < 0){
-        error("ERROR reading from socket");
-      }
-
-      // Read the client's key from the socket
-      charsRead = recv(connectionSocket, key, BUFFER_SIZE, 0); 
-      if (charsRead < 0){
-        error("ERROR reading from socket");
-      }
-      
+      charsRead = recvall(connectionSocket, text, BUFFER_SIZE);
       if (charsRead < 0)
       {
         error("ERROR reading from socket");
       }
 
+      // Read the client's key from the socket
+      charsRead = recvall(connectionSocket, key, BUFFER_SIZE);
+      if (charsRead < 0)
+      {
+        error("ERROR reading from socket");
+      }
+
+      if (charsRead < 0)
+      {
+        error("ERROR reading from socket");
+      }
 
       // Encrypt the text with the key
       encrypt(cipher, text, key);
 
       // Send the encrypted text back to the client
-      charsRead = send(connectionSocket, cipher, strlen(cipher), 0);
+      charsRead = sendall(connectionSocket, cipher, BUFFER_SIZE);
       if (charsRead < 0)
       {
-        error("ERROR writing to socket");
+        error("ERROR writing to socket-enc-server-send:1");
       }
 
       // Close the connection socket for this client

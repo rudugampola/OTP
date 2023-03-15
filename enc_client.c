@@ -52,6 +52,48 @@ void setupAddressStruct(struct sockaddr_in *address, int portNumber)
            hostInfo->h_length);
 }
 
+int sendall(int s, char *buf, int len)
+{
+    int total = 0;        // how many bytes we've sent
+    int bytesleft = len; // how many we have left to send
+    int n;
+
+    // printf("Client-send: len: %d , bytesleft: %d \n", len, bytesleft);
+    while(total < len) {
+        n = send(s, buf+total, bytesleft, 0);
+        if (n == -1) { break; }
+        total += n;
+        bytesleft -= n;
+    } 
+
+    len = total; // return number actually sent here
+
+    return n==-1?-1:0; // return -1 on failure, 0 on success
+} 
+
+
+int recvall(int s, char *buf, int len) {
+    int total = 0;         // how many bytes we've received so far
+    int bytesleft = len;   // how many bytes we have left to receive
+    int n;
+    // printf("Client-recv: len: %d , bytesleft: %d \n", len, bytesleft);
+    while (total < len) {
+        n = recv(s, buf + total, bytesleft, 0);
+        if (n == -1) { break; }
+        if (n == 0) { return total; } // connection closed by remote host
+        total += n;
+        bytesleft -= n;
+    }
+
+    if (n == -1) {
+        // an error occurred while receiving
+        return -1;
+    } else {
+        // successfully received all data
+        return total;
+    }
+}
+
 int main(int argc, char *argv[])
 {
     int socketFD, portNumber, charsWritten, charsRead;
@@ -59,7 +101,7 @@ int main(int argc, char *argv[])
     char buffer[BUFFER_SIZE];
     memset(buffer, '\0', sizeof(buffer));
     FILE *fd;
-    int nBytes;
+    int nBytes = 0;
     int authSend, authRead;
     char auth[2] = "e";
 
@@ -80,12 +122,6 @@ int main(int argc, char *argv[])
     // Set up the server address struct
     setupAddressStruct(&serverAddress, atoi(argv[3]));
 
-    // Connect to server
-    if (connect(socketFD, (struct sockaddr *)&serverAddress, sizeof(serverAddress)) < 0)
-    {
-        error("CLIENT: ERROR connecting");
-    }
-
     // Get sizes of plaintext and key
     int key = open(argv[2], O_RDONLY);
     int keySize = lseek(key, 0, SEEK_END);
@@ -101,13 +137,15 @@ int main(int argc, char *argv[])
     // Check if key is long enough. Print error message and exit if not
     if (keySize < textSize)
     {
-        fprintf(stderr, "CLIENT: Error - key '%s' is too short \n", argv[2]); 
+        fprintf(stderr, "CLIENT: Error - key '%s' is too short \n", argv[2]);
         exit(1);
     }
 
     // If file has invalid characters print error message and exit
     if (textSize > 0)
     {
+        // Start reading at the beginning of the file
+        lseek(text, 0, SEEK_SET);
         // check if source file contains invalid characters
         while (read(text, buffer, 1) != 0)
         {
@@ -119,15 +157,21 @@ int main(int argc, char *argv[])
         }
     }
 
+    // Connect to server
+    if (connect(socketFD, (struct sockaddr *)&serverAddress, sizeof(serverAddress)) < 0)
+    {
+        error("CLIENT: ERROR connecting");
+    }
+
     // Send auth char to server to verify enc_client
-    authSend = send(socketFD, auth, sizeof(auth), 0);
+    authSend = sendall(socketFD, auth, sizeof(auth));
     if (authSend < 0)
     {
-        error("CLIENT: ERROR writing to socket");
+        error("CLIENT: ERROR writing to socket-enc-client-auth:1");
     }
     // If received auth char is not 'y' then it is not enc_client
     memset(auth, '\0', sizeof(auth));
-    authRead = recv(socketFD, auth, sizeof(auth), 0);
+    authRead = recvall(socketFD, auth, sizeof(auth));
     if (authRead < 0)
     {
         error("CLIENT: ERROR reading from socket");
@@ -147,10 +191,10 @@ int main(int argc, char *argv[])
     memset(buffer, '\0', sizeof(buffer));
     while ((textSize = fread(buffer, sizeof(char), BUFFER_SIZE, fd)) > 0)
     {
-        if ((nBytes = send(socketFD, buffer, textSize, 0)) < 0)
+        nBytes = sendall(socketFD, buffer, BUFFER_SIZE);
+        if (nBytes < 0)
         {
-            printf("Sent text file");
-            error("CLIENT: ERROR writing to socket");
+            error("CLIENT: ERROR writing to socket-enc-client-text:1");
             break;
         }
         memset(buffer, '\0', sizeof(buffer));
@@ -162,9 +206,10 @@ int main(int argc, char *argv[])
     memset(buffer, '\0', sizeof(buffer));
     while ((keySize = fread(buffer, sizeof(char), BUFFER_SIZE, fd)) > 0)
     {
-        if ((nBytes = send(socketFD, buffer, keySize, 0)) < 0)
+        nBytes = sendall(socketFD, buffer, BUFFER_SIZE);
+        if (nBytes < 0)
         {
-            error("CLIENT: ERROR writing to socket");
+            error("CLIENT: ERROR writing to socket-enc-client-key:1");
             break;
         }
         // printf("nBytes: %d", nBytes);
@@ -175,7 +220,7 @@ int main(int argc, char *argv[])
     // Clear out the buffer again for reuse
     memset(buffer, '\0', sizeof(buffer));
     // Read data from the socket, leaving \0 at end
-    charsRead = recv(socketFD, buffer, sizeof(buffer) - 1, 0);
+    charsRead = recvall(socketFD, buffer, BUFFER_SIZE);
     if (charsRead < 0)
     {
         error("CLIENT: ERROR reading from socket");
