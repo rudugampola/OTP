@@ -1,10 +1,25 @@
 # OTP
 One-Time Pad Encryption
 
-# Bash shell script called ```compileall``` creates 5 executable programs from files. These 5 programs must be created in the same directory as ```compileall```. 
-$ bash compileall
+## Bash shell script called `compileall` 
 
-$ ./enc_server listening_port
-$ ./dec_server listening_port
-$ ./enc_client plaintext key port
-$ ./dec_client plaintext key port
+The `compileall` shell script creates 5 executable programs from files. These 5 programs must be created in the same directory as `compileall`.
+
+To run the script, open a terminal and execute the following command:
+```bash compileall```
+
+
+## Executable programs
+Once `compileall` has been executed, you can run the following executable programs:
+
+- `enc_server`: runs the encryption server. It takes one argument, the `listening_port`.
+```./enc_server listening_port```
+
+- `dec_server`: runs the decryption server. It takes one argument, the `listening_port`.
+```./dec_server listening_port```
+
+- `enc_client`: runs the encryption client. It takes three arguments, the `plaintext`, the `key`, and the `port`.
+```./enc_client plaintext key port```
+
+- `dec_client`: runs the decryption client. It takes three arguments, the `plaintext`, the `key`, and the `port`.
+```./dec_client plaintext key port```
