@@ -1,7 +1,7 @@
 # OTP
 One-Time Pad Encryption
 
-## Bash shell script called `compileall` 
+### Bash shell script called `compileall` 
 
 The `compileall` shell script creates 5 executable programs from files. These 5 programs must be created in the same directory as `compileall`.
 
