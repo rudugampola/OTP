@@ -11,13 +11,13 @@ To run the script, open a terminal and execute the following command:
 Once `compileall` has been executed, you can run the following executable programs:
 
 - `enc_server`: runs the encryption server. It takes one argument, the `listening_port`.
-  - ```./enc_server listening_port```
+  ```./enc_server listening_port```
 
 - `dec_server`: runs the decryption server. It takes one argument, the `listening_port`.
-  - ```./dec_server listening_port```
+  ```./dec_server listening_port```
 
 - `enc_client`: runs the encryption client. It takes three arguments, the `plaintext`, the `key`, and the `port`.
-  - ```./enc_client plaintext key port```
+  ```./enc_client plaintext key port```
 
 - `dec_client`: runs the decryption client. It takes three arguments, the `plaintext`, the `key`, and the `port`.
-  - ```./dec_client plaintext key port```
+  ```./dec_client plaintext key port```
