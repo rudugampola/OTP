@@ -52,6 +52,11 @@ void setupAddressStruct(struct sockaddr_in *address, int portNumber)
            hostInfo->h_length);
 }
 
+/*
+ * This function was created using beej's guide to network programming
+ * 7.4 Handling Partial send()s section. 
+ * https://beej.us/guide/bgnet/html/#sendrecv
+*/
 int sendall(int s, char *buf, int len)
 {
     int total = 0;        // how many bytes we've sent
@@ -71,7 +76,11 @@ int sendall(int s, char *buf, int len)
     return n==-1?-1:0; // return -1 on failure, 0 on success
 } 
 
-
+/*
+ * This function was created using beej's guide to network programming
+ * 7.4 Handling Partial send()s section. 
+ * https://beej.us/guide/bgnet/html/#sendrecv
+*/
 int recvall(int s, char *buf, int len) {
     int total = 0;         // how many bytes we've received so far
     int bytesleft = len;   // how many bytes we have left to receive
@@ -100,10 +109,11 @@ int main(int argc, char *argv[])
     struct sockaddr_in serverAddress;
     char buffer[BUFFER_SIZE];
     memset(buffer, '\0', sizeof(buffer));
+
     FILE *fd;
     int nBytes = 0;
     int authSend, authRead;
-    char auth[2] = "e";
+    char auth[2] = "e"; // auth char to verify enc_client with server
 
     // Check usage & args
     if (argc < 4)
@@ -122,12 +132,13 @@ int main(int argc, char *argv[])
     // Set up the server address struct
     setupAddressStruct(&serverAddress, atoi(argv[3]));
 
-    // Get sizes of plaintext and key
+    // Get sizes of plaintext and key files
     int key = open(argv[2], O_RDONLY);
     int keySize = lseek(key, 0, SEEK_END);
     int text = open(argv[1], O_RDONLY);
     int textSize = lseek(text, 0, SEEK_END);
 
+    // Check if files were opened successfully. Print error message and exit if not
     if (text == -1 || key == -1)
     {
         fprintf(stderr, "CLIENT: ERROR - could not open file \n");
@@ -146,9 +157,10 @@ int main(int argc, char *argv[])
     {
         // Start reading at the beginning of the file
         lseek(text, 0, SEEK_SET);
-        // check if source file contains invalid characters
+        // Check each character in the file to see if it is a valid character
         while (read(text, buffer, 1) != 0)
         {
+            // If the character is not a space or an uppercase letter, print error message and exit
             if (!(isspace(buffer[0]) || isalpha(buffer[0])))
             {
                 fprintf(stderr, "ERROR: found invalid character in %s\n", argv[1]);
@@ -181,16 +193,19 @@ int main(int argc, char *argv[])
         error("ERROR connected client NOT enc_client");
     }
 
-    // Send text file to server
+    // Send plaintext file to server to be encrypted
     fd = fopen(argv[1], "r");
     if (fd == NULL)
     {
         fprintf(stderr, "Error: could not open file \n");
         exit(1);
     }
+    // Clear buffer 
     memset(buffer, '\0', sizeof(buffer));
+    // Read from file and send to server
     while ((textSize = fread(buffer, sizeof(char), BUFFER_SIZE, fd)) > 0)
     {
+        // nBytes is the number of bytes sent to server 
         nBytes = sendall(socketFD, buffer, BUFFER_SIZE);
         if (nBytes < 0)
         {
@@ -201,7 +216,7 @@ int main(int argc, char *argv[])
     }
     fclose(fd);
 
-    // Send key file to server
+    // Send the key to server to be used for encryption
     fd = fopen(argv[2], "r");
     memset(buffer, '\0', sizeof(buffer));
     while ((keySize = fread(buffer, sizeof(char), BUFFER_SIZE, fd)) > 0)
@@ -215,7 +230,8 @@ int main(int argc, char *argv[])
         // printf("nBytes: %d", nBytes);
         memset(buffer, '\0', sizeof(buffer));
     }
-    fclose(fd);
+    fclose(fd); // Close the file that was opened
+
     // Get encrypred message returned from server
     // Clear out the buffer again for reuse
     memset(buffer, '\0', sizeof(buffer));

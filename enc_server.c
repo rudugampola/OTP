@@ -30,7 +30,7 @@ void error(const char *msg)
   exit(1);
 }
 
-// Iterate through charLib to return the position of c, -1 if c is not in charLib
+// Return the position of c in charLib, -1 if c is not in charLib
 int convertChar(char c)
 {
   int i;
@@ -60,6 +60,7 @@ void encrypt(char cipher[], const char text[], const char key[])
   int cipherInt = 0;
   int i;
 
+  // Iterate through text and key, convert each char to int, add them together, and convert back to char
   for (i = 0; i < textLen-1; i++)
   {
     textInt = convertChar(text[i]);
@@ -70,6 +71,11 @@ void encrypt(char cipher[], const char text[], const char key[])
   }
 }
 
+/*
+ * This function was created using beej's guide to network programming
+ * 7.4 Handling Partial send()s section. 
+ * https://beej.us/guide/bgnet/html/#sendrecv
+*/
 int sendall(int s, char *buf, int len)
 {
     int total = 0;        // how many bytes we've sent
@@ -87,7 +93,11 @@ int sendall(int s, char *buf, int len)
     return n==-1?-1:0; // return -1 on failure, 0 on success
 } 
 
-
+/*
+ * This function was created using beej's guide to network programming
+ * 7.4 Handling Partial send()s section. 
+ * https://beej.us/guide/bgnet/html/#sendrecv
+*/
 int recvall(int s, char *buf, int len) {
     int total = 0;         // how many bytes we've received so far
     int bytesleft = len;   // how many bytes we have left to receive

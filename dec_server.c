@@ -76,6 +76,11 @@ void decrypt(char decipher[], char text[], char key[])
   }
 }
 
+/*
+ * This function was created using beej's guide to network programming
+ * 7.4 Handling Partial send()s section. 
+ * https://beej.us/guide/bgnet/html/#sendrecv
+*/
 int sendall(int s, char *buf, int len)
 {
     int total = 0;        // how many bytes we've sent
@@ -93,7 +98,11 @@ int sendall(int s, char *buf, int len)
     return n==-1?-1:0; // return -1 on failure, 0 on success
 } 
 
-
+/*
+ * This function was created using beej's guide to network programming
+ * 7.4 Handling Partial send()s section. 
+ * https://beej.us/guide/bgnet/html/#sendrecv
+*/
 int recvall(int s, char *buf, int len) {
     int total = 0;         // how many bytes we've received so far
     int bytesleft = len;   // how many bytes we have left to receive

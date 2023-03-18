@@ -13,7 +13,7 @@
 
 /**
  * Decrypt Client Code
- * 1. Create a socket
+ * 1. Create a socket 
  * 2. Connect to server
  * 3. Send data to server
  * 4. Receive data from server
@@ -77,7 +77,7 @@ int sendall(int s, char *buf, int len)
 
 /*
  * This function was created using beej's guide to network programming
- * 7.4 Handling Partial recv()s section. 
+ * 7.4 Handling Partial send()s section. 
  * https://beej.us/guide/bgnet/html/#sendrecv
 */
 int recvall(int s, char *buf, int len) {
